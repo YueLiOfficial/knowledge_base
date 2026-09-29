@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import TypedDict, Unpack
 import copy
 
 class ImportGraphState(TypedDict):
@@ -8,8 +8,8 @@ class ImportGraphState(TypedDict):
     local_file_path: str
 
     # 确认的文件
-    md_path: str
-    pdf_path:str
+    md_path: str | None
+    pdf_path:str | None
     file_title: str
     local_dir: str
 
@@ -41,7 +41,7 @@ graph_default_state: ImportGraphState = {
     "embeddings_content": [],
 }
 
-def create_deafult_state(**args):
+def create_default_state(**args: Unpack[ImportGraphState]) -> ImportGraphState:
     new_state = copy.deepcopy(graph_default_state)
 
     new_state.update(args)
