@@ -20,7 +20,7 @@ class InfraConfig:
     reranker_config: RerankerConfig = field(default_factory=lambda: reranker_config)
     settings: AppSettings = field(default_factory=lambda: settings)
 
-if __name__ == "__main__":
-    infra_config = InfraConfig()
 
-    print(infra_config.lm_config.api_key)
+infra_config = InfraConfig()
+
+    # print(infra_config.lm_config.api_key)
