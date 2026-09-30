@@ -44,4 +44,4 @@ if __name__ == '__main__':
 
     # print(f"第三次测试结果: \n {json.dumps(result_3, indent=4, ensure_ascii=False)}")
 
-    logger.info("===== 结束node_entry节点单元测试 =====")
+    # logger.info("===== 结束node_entry节点单元测试 =====")
