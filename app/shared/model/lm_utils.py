@@ -7,7 +7,7 @@ from langchain_openai import ChatOpenAI
 from app.shared.config.lm_config import lm_config
 from app.shared.runtime.logger import logger
 
-_DEFAULT_LLM_MODEL = "qwen3-32b"
+_DEFAULT_LLM_MODEL = "qwen3.7-max"
 _DEFAULT_TEMPERATURE = 0.1
 _llm_client_cache: dict[tuple[str, bool], ChatOpenAI] = {}
 

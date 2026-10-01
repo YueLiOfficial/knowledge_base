@@ -11,7 +11,7 @@ _GLOBAL_REQUEST_TIMES: Deque[float] = deque()
 
 
 def apply_api_rate_limit(
-        max_requests: int = 500,
+        max_requests: int = 3000,
         window_seconds: int = 60
 ) -> None:
     """
