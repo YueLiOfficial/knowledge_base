@@ -40,6 +40,16 @@ def validate_and_get_data(state: ImportGraphState) -> tuple[str, list[dict[str, 
 
 @step_log("get_item_name")
 def get_item_name(chunks: list[dict[str, Any]], file_title: str) -> str:
+    """
+    获取item_name.
+
+    Args:
+        chunks:
+        file_title:
+    Returns:
+        item_name.
+    """
+
     llm_model = llm_prrovider.llm_model()
 
     context = ""
@@ -69,6 +79,10 @@ def get_item_name(chunks: list[dict[str, Any]], file_title: str) -> str:
 
 @step_log("padding_item_name")
 def padding_item_name(chunks: list[dict[str, Any]], item_name: str) -> None:
+    """
+    将item_name填充进chunks.
+    """
+
     for chunk in chunks:
         chunk["item_name"] = item_name
 
@@ -76,6 +90,10 @@ def padding_item_name(chunks: list[dict[str, Any]], item_name: str) -> None:
 
 @step_log("create_item_name_collection")
 def create_item_name_collection() -> None:
+    """
+    在milvus中创建集合。
+    """
+
     client = milvus_gateway.client
 
     if not client:
@@ -127,6 +145,10 @@ def create_item_name_collection() -> None:
 
 @step_log("add_item_name_to_milvus")
 def add_item_name_to_milvus(item_name: str, file_title: str) -> None:
+    """
+    将item_name以及相关向量保存到milvus。
+    """
+
     client = milvus_gateway.client
 
     if not client:
