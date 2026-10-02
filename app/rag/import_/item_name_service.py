@@ -29,6 +29,10 @@ def validate_and_get_data(state: ImportGraphState) -> tuple[str, list[dict[str, 
 
     if not chunks:
         json_file = Path(md_path).parent / "f{file_title}.json"
+        if not json_file.is_file():
+            logger.error(f"{json_file.name}备份文件为空或不存在")
+            raise FileNotFoundError(f"{json_file.name}备份文件为空或不存在")
+
         chunks = json.loads(json_file.read_text(encoding="utf-8"))
         state["chunks"] = chunks
 
