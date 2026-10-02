@@ -18,8 +18,8 @@ def validate_and_get_data(state: ImportGraphState) -> tuple[str, list[dict[str, 
     chunks = state.get("chunks")
     file_title = state.get("file_title")
 
-    if not md_path:
-        logger.error(f"md_path为空，请传入正确参数")
+    if (not md_path) or (not Path(md_path).is_file()):
+        logger.error(f"md_path为空或不存在，请传入正确参数")
         raise ValueError(f"md_path为空，请传入正确参数")
 
     if not file_title:
