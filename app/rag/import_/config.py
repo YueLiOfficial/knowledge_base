@@ -22,3 +22,13 @@ CHUNK_SIZE = 600
 CHUNK_OVERLAP = 50
 # 最小碎片阈值：低于这个长度判定为短碎片，需要尝试合并
 CHUNK_MIN = 400
+
+# 主体识别上下文切片数：取前 K 个切片用于 LLM 识别
+ITEM_NAME_CONTEXT_CHUNK_K = 5
+# 主体识别上下文总字符数上限：防止上下文过长导致大模型输入超限
+ITEM_NAME_CONTEXT_TOTAL_MAX_CHARS = 10000
+
+# Milvus 向量维度（BGE-M3 稠密向量维度）
+MILVUS_VECTOR_DIM = 1024
+# Milvus VARCHAR 字段最大长度
+MILVUS_DEFAULT_VARCHAR_MAX_LENGTH = 512
