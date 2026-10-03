@@ -166,3 +166,4 @@ logs/
 output/
 doc/
 test/
+.vscode/
