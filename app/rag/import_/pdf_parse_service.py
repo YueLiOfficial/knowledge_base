@@ -203,7 +203,7 @@ def download_and_extract_markdown(zip_load_path: str, local_dir: Path, file_name
         logger.error(f"解压后的文件中没有找到full.md")
         raise FileNotFoundError(f"解压后的文件中没有找到full.md")
 
-    full_md_path.rename(full_md_path.with_name(f"{file_name}.md"))
+    full_md_path = full_md_path.rename(full_md_path.with_name(f"{file_name}.md"))
 
     logger.info(f"文件解压完成, md文件的路径为: {full_md_path}")
 
