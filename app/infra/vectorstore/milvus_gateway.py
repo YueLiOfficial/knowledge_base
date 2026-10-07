@@ -47,7 +47,7 @@ class MilvusGateway:
         dense_vector: list[float],
         sparse_vector: dict[int, float],
         *,
-        expr: str = None,
+        expr: str = None, # type: ignore
         limit: int = 5,
     ):
         """
@@ -96,7 +96,7 @@ class MilvusGateway:
             Any: Milvus 返回的原始检索结果。
         """
         return hybrid_search(
-            client=self.client(),
+            client=self.client,
             collection_name=collection_name,
             reqs=reqs,
             ranker_weights=ranker_weights,

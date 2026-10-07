@@ -257,4 +257,6 @@ def split_document(state: ImportGraphState) -> ImportGraphState:
 
     backup_chunks_as_json(refine_chunks, md_path)
 
+    state["chunks"] = refine_chunks
+
     return state
