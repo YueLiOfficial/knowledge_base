@@ -48,6 +48,7 @@ builder.add_edge("node_search_embedding", "node_rrf")
 builder.add_edge("node_search_embedding_hyde", "node_rrf")
 builder.add_edge("node_web_search_mcp", "node_rrf")
 builder.add_edge("node_rrf", "node_rerank")
-builder.add_edge("node_rerank", END)
+builder.add_edge("node_rerank", "node_answer_output")
+builder.add_edge("node_answer_output", END)
 
 query_graph = builder.compile()
