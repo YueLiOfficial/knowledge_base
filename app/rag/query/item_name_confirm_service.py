@@ -58,8 +58,8 @@ def get_item_name_and_rewritten(original_query: str, history_list: list[dict]) -
                         提取出的item_name: {history.get('item_names')}")
             else:
                 history_new.append(
-                    f"模型改写后的问题: {history.get('rewritten_query')}, 模型回答: {history.get('text')[:50]}, \
-                        提取出的item_name: {history.get('item_names')}"
+                    f"模型改写后的问题: {history.get('rewritten_query')}, \
+                        模型回答: {history.get('text')[:50]}, 提取出的item_name: {history.get('item_names')}" # type: ignore
                 )
 
         history_text = "\n".join(history_new)
