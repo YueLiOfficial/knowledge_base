@@ -30,11 +30,13 @@ class HistoryMongoTool:
             self.mongo_url = os.getenv("MONGO_URL")
             # 从环境变量读取要使用的数据库名称
             self.db_name = os.getenv("MONGO_DB_NAME")
+            self.username = os.getenv("MONGO_USERNAME")
+            self.passwd = os.getenv("MONGO_PASSWD")
 
             # 创建MongoDB客户端实例，建立与数据库的连接
-            self.client = MongoClient(self.mongo_url)
+            self.client = MongoClient(self.mongo_url, username=self.username, password=self.passwd, authSource="admin")
             # 获取指定名称的数据库对象 user 库
-            self.db = self.client[self.db_name]
+            self.db = self.client[self.db_name] # type: ignore
             # 获取对话记录的集合（相当于关系型数据库的表），集合名：chat_message  db.chat_message
             self.chat_message = self.db["chat_message"]
 
