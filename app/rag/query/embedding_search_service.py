@@ -2,6 +2,7 @@ from app.infra.vectorstore.milvus_gateway import milvus_gateway
 from app.process.query.agent.state import QueryGraphState
 from app.shared.runtime.logger import logger, step_log
 from app.infra.llm.providers import llm_prrovider
+from app.rag.query.config import *
 
 @step_log("validate_and_get_data")
 def validate_and_get_data(state: QueryGraphState) -> tuple[str, list]:
@@ -25,7 +26,7 @@ def get_embedding_search_answer(rewritten_query: str, item_names: list) -> list[
         dense_vector=dense,
         sparse_vector=sparse,
         expr=f"item_name in {item_names}",
-        limit=5 * 2
+        limit=MILVUS_CHUNK_TOP_K * 2
     )
 
     result = milvus_gateway.hybrid_search(
@@ -33,7 +34,7 @@ def get_embedding_search_answer(rewritten_query: str, item_names: list) -> list[
         reqs=reqs,
         ranker_weights=(0.5, 0.5),
         norm_score=True,
-        limit=5,
+        limit=MILVUS_CHUNK_TOP_K,
         output_fields=["chunk_id", "file_title", "parent_title", "title", "part", "content", "item_name"]
     )
 
