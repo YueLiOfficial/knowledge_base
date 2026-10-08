@@ -6,13 +6,13 @@ from langchain_core.output_parsers import JsonOutputParser
 from app.infra.vectorstore.milvus_gateway import milvus_gateway
 from app.process.query.agent.state import QueryGraphState
 from app.shared.runtime.load_prompt import load_prompt
-from app.shared.runtime.logger import logger
+from app.shared.runtime.logger import logger, step_log
 from app.shared.clients.mongo_history_utils import save_chat_message
 from app.shared.clients.mongo_history_utils import get_recent_messages
 from app.infra.llm.providers import llm_prrovider
 from app.rag.query.config import *
 
-
+@step_log("validate_and_get_data")
 def validate_and_get_data(state: QueryGraphState) -> tuple[str, str]:
     session_id = state.get("session_id")
     original_query = state.get("original_query")
@@ -23,6 +23,7 @@ def validate_and_get_data(state: QueryGraphState) -> tuple[str, str]:
 
     return session_id, original_query
 
+@step_log("get_history")
 def get_history(session_id: str) -> list[dict]:
     """ 获取有效的历史消息 """
 
@@ -34,7 +35,8 @@ def get_history(session_id: str) -> list[dict]:
     logger.info(f"过滤掉无效消息后，剩余{len(return_history_list)}条历史消息")
 
     return return_history_list
-    
+
+@step_log("get_item_name_and_rewritten")
 def get_item_name_and_rewritten(original_query: str, history_list: list[dict]) -> dict[str, Any]:
     """
     通过大模型获取item_name并且重写问题。
@@ -85,6 +87,7 @@ def get_item_name_and_rewritten(original_query: str, history_list: list[dict]) -
         "rewritten_query": res.get("rewritten_query")
     }
 
+@step_log("select_item_name")
 def select_item_name(llm_dict: dict[str, Any]) -> dict[str, list]:
     """
     对大模型给出的item_name进行得分计算。
@@ -145,6 +148,7 @@ def select_item_name(llm_dict: dict[str, Any]) -> dict[str, list]:
     
     return milvus_res
 
+@step_log("get_confirmed_item_name")
 def get_confirmed_item_name(milvus_res: dict) -> dict:
     """
     根据每个item_name的得分情况，获取可信的结果和可选的结果。
@@ -180,6 +184,7 @@ def get_confirmed_item_name(milvus_res: dict) -> dict:
         "option_item_name": option_list
     }
 
+@step_log("change_state_property")
 def change_state_property(state: QueryGraphState, confirmed_and_option_item_name: dict, rewritten_query: str):
     """ 更新state """
     
@@ -194,6 +199,7 @@ def change_state_property(state: QueryGraphState, confirmed_and_option_item_name
     else:
         state["answer"] = "无法识别您要咨询的产品，请提供产品准确的名称"
 
+@step_log("save_history")
 def save_history(state: QueryGraphState):
     """ 保存历史消息 """
     
@@ -206,7 +212,7 @@ def save_history(state: QueryGraphState):
         image_urls=[]
     )
 
-
+@step_log("confirm_item_name")
 def confirm_item_name(state: QueryGraphState) -> QueryGraphState:
     """
     意图确认服务：
