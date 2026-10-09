@@ -14,28 +14,32 @@ from app.infra.llm.providers import llm_prrovider
 
 @step_log("validate_and_get_data")
 def validate_and_get_data(state: ImportGraphState) -> tuple[str, list[dict[str, Any]]]:
-    md_path = state.get("md_path")
     chunks = state.get("chunks")
     file_title = state.get("file_title")
 
-    if (not md_path) or (not Path(md_path).is_file()):
-        logger.error(f"md_path为空或不存在，请传入正确参数")
-        raise ValueError(f"md_path为空，请传入正确参数")
-
-    if not file_title:
-        file_title = Path(md_path).stem
-        logger.warning(f"file_title为空，使用默认值{file_title}")
-        state["file_title"] = file_title
-
     if not chunks:
-        json_file = Path(md_path).parent / f"{file_title}.json"
-        if not json_file.is_file():
-            logger.error(f"{json_file.name}备份文件为空或不存在")
-            raise FileNotFoundError(f"{json_file.name}备份文件为空或不存在")
-
-        chunks = json.loads(json_file.read_text(encoding="utf-8"))
-        state["chunks"] = chunks
-
+        # 核心参数错了
+        md_path:str = state.get("md_path") # type: ignore
+        md_path_obj:Path = Path(md_path)
+        if md_path_obj.is_file():
+            json_path_obj:Path = md_path_obj.with_name(f"{md_path_obj.stem}.json")
+            if json_path_obj.is_file():
+                chunks = json.loads(json_path_obj.read_text(encoding="utf-8"))
+                state['chunks'] = chunks
+            else:
+                logger.error(f"chunks没有值,json备份文件不存在,抛出异常!")
+                raise ValueError(f"chunks没有值,json备份文件不存在,抛出异常!")
+        else:
+            logger.error(f"chunks没有值,同时也没有读取到对应json备份数据,抛出异常!")
+            raise ValueError(f"chunks没有值,同时也没有读取到对应json备份数据,抛出异常!")
+    if not file_title:
+        md_path: str = state.get("md_path") # type: ignore
+        md_path_obj: Path = Path(md_path)
+        file_title = md_path_obj.stem or "default_title"
+        state['file_title'] = file_title
+        logger.warning(f"file_title不存在,给与默认值:{file_title}")
+    
+    # 3. 返回结果
     return file_title, chunks 
 
 @step_log("get_item_name")

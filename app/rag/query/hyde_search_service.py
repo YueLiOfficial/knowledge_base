@@ -19,8 +19,8 @@ def validate_and_get_data(state: QueryGraphState) -> tuple[str, list]:
 
     return rewritten_query, item_names
 
-@step_log("call_llm_get_hyde_query")
-def call_llm_get_hyde_query(rewritten_query: str) -> str:
+@step_log("call_llm_by_rewritten_query")
+def call_llm_by_rewritten_query(rewritten_query: str) -> str:
     llm_model = llm_prrovider.llm_model()
 
     # 加载提示词
@@ -99,7 +99,7 @@ def search_by_hyde(state: QueryGraphState) -> list:
 
     rewritten_query, item_names = validate_and_get_data(state)
 
-    hyde_query = call_llm_get_hyde_query(rewritten_query)
+    hyde_query = call_llm_by_rewritten_query(rewritten_query)
 
     embedding_list = get_embedding_search_answer(rewritten_query, item_names, hyde_query)
 

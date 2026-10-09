@@ -167,3 +167,4 @@ output/
 doc/
 test/
 .vscode/
+rag_eval/

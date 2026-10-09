@@ -29,7 +29,8 @@ def merge_answer(rrf_chunks: list, web_search_docs: list) -> list[dict]:
             "text": chunk.get("content"),
             "url": "",
             "score":0.0,
-            "type": "milvus"
+            "type": "milvus",
+            "chunk_id": chunk.get("chunk_id")
         })
 
     for doc in web_search_docs:
@@ -38,7 +39,8 @@ def merge_answer(rrf_chunks: list, web_search_docs: list) -> list[dict]:
             "text": doc.get("snippet"),
             "url": doc.get("url"),
             "score":0.0,
-            "type": "web"
+            "type": "web",
+            "chunk_id": ""
         })
 
     return merged_chunks
