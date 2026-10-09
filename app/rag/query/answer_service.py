@@ -116,6 +116,8 @@ def get_image_urls(context_docs: list[dict]) -> list:
 
 @step_log("save_history")
 def save_history(state: QueryGraphState):
+    # option_item_names 仅在候选分支有值；为 None 时 save_chat_message 不写入该字段，
+    # 从而不会覆盖历史中已有的候选数据。
     save_chat_message(
         session_id=state["session_id"],
         role="assistant",
@@ -123,6 +125,7 @@ def save_history(state: QueryGraphState):
         rewritten_query=state["rewritten_query"],
         item_names=state["item_names"],
         image_urls=state["image_urls"],
+        option_item_names=state.get("option_item_names") or None,
     )
 
 @step_log("generate_answer")

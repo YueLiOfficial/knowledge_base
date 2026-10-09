@@ -48,7 +48,7 @@ def get_stream_msg(session_id: str, request: Request):
         media_type="text/event-stream"
     )
 
-def invoke_query(session_id: str, query: str, is_stream: bool):
+def invoke_query(session_id: str, query: str, is_stream: bool, force_item_names: list[str] | None = None):
     try:
         clear_task(session_id)
 
@@ -58,7 +58,8 @@ def invoke_query(session_id: str, query: str, is_stream: bool):
         state = create_query_default_state(
                 session_id = session_id,
                 original_query = query,
-                is_stream = is_stream
+                is_stream = is_stream,
+                force_item_names = force_item_names or []
             )
 
         logger.info(f"{session_id}开始进行解析")
@@ -74,7 +75,8 @@ def invoke_query(session_id: str, query: str, is_stream: bool):
                 {
                     "answer": state.get("answer"),
                     "status": "completed",
-                    "image_urls": state.get("image_urls")
+                    "image_urls": state.get("image_urls"),
+                    "option_item_names": state.get("option_item_names", [])
                 }
             )
 
@@ -90,16 +92,28 @@ def query(param: StreamRequestSchema, task: BackgroundTasks):
     query = param.query
     session_id = param.session_id
     is_stream = param.is_stream
+    force_item_names = param.force_item_names
 
     if is_stream:
-        task.add_task(invoke_query, session_id=session_id, query=query, is_stream=is_stream)
+        task.add_task(
+            invoke_query,
+            session_id=session_id,
+            query=query,
+            is_stream=is_stream,
+            force_item_names=force_item_names
+        )
 
         return StreamResponseSchema(
             session_id=session_id,
             message=f"{session_id}正在进行解析..."
         )
     else:
-        state = invoke_query(session_id=session_id, query=query, is_stream=is_stream)
+        state = invoke_query(
+            session_id=session_id,
+            query=query,
+            is_stream=is_stream,
+            force_item_names=force_item_names
+        )
 
         done_list = get_done_task_list(session_id)
 
@@ -109,7 +123,8 @@ def query(param: StreamRequestSchema, task: BackgroundTasks):
             message=f"{session_id}结果解析完成",
             answer=state.get("answer", ""),
             done_list=done_list,
-            image_urls=state.get("image_urls", [])
+            image_urls=state.get("image_urls", []),
+            option_item_names=state.get("option_item_names", [])
         )
 
 # 删除历史记录接口
@@ -140,7 +155,8 @@ def get_history(session_id: str, limit: int=10):
                 rewritten_query=item.get("rewritten_query", ''),
                 item_names=item.get("item_names", []),
                 image_urls=item.get("image_urls", []),
-                ts=item.get("ts", '')
+                ts=item.get("ts", ''),
+                option_item_names=item.get("option_item_names") or []
             ) for item in items
         ]
     )

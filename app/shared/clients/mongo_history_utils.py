@@ -111,7 +111,8 @@ def save_chat_message(
         rewritten_query: str = "",
         item_names: list[str] | None = None,
         image_urls: list[str] | None = None,
-        message_id: str | None = None
+        message_id: str | None = None,
+        option_item_names: list[str] | None = None
 ) -> str:
     """
     写入/更新单条会话记录到MongoDB
@@ -123,6 +124,7 @@ def save_chat_message(
     :param item_names: 关联的商品名称列表（可选，支持多商品，默认None）
     :param image_urls: 关联的图片URL列表（可选，默认None）
     :param message_id: 记录主键ID（可选，有值则更新，无值则新增）
+    :param option_item_names: 待用户确认的候选商品名称列表（可选，默认None）
     :return: 插入/更新的记录唯一标识（新增返回ObjectId字符串，更新返回传入的message_id）
     """
     # 生成当前时间的时间戳（秒级），用于记录消息的创建时间，后续用于排序和查询
@@ -138,6 +140,10 @@ def save_chat_message(
         "image_urls": image_urls,  # 关联图片URL列表
         "ts": ts  # 时间戳，排序和时间筛选维度
     }
+
+    # 仅在显式传入时写入候选列表：更新模式下可避免把已有候选覆盖为 null
+    if option_item_names is not None:
+        document["option_item_names"] = option_item_names  # 待确认的候选商品名称
 
     # 获取全局的HistoryMongoTool实例，使用单例模式
     mongo_tool = get_history_mongo_tool()

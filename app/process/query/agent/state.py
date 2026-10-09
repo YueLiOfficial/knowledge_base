@@ -30,6 +30,8 @@ class QueryGraphState(TypedDict):
     history: list  # 历史对话记录
     is_stream: bool  # 是否流式输出标记
     image_urls: List[str]  # 答案中引用的图片链接
+    option_item_names: List[str]  # 待用户确认的候选商品名称（供前端渲染选项卡片）
+    force_item_names: List[str]  # 用户已明确选定的商品名称：直接作为 item_names 使用，跳过主体确认检索
 
 
 # ========================
@@ -49,7 +51,9 @@ query_graph_default_state: QueryGraphState = {
     "rewritten_query": "",
     "history": [],
     "is_stream": False,
-    "image_urls": []
+    "image_urls": [],
+    "option_item_names": [],
+    "force_item_names": []
 }
 
 
