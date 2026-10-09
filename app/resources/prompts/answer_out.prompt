@@ -7,16 +7,16 @@
 <图片URL2>
 （每行一个URL；如果没有合适图片则不要输出【图片】区块）
 
-【参考内容】
-{context}
-
-【历史对话】
-{history}
-
 【相关商品/实体】
 {item_names}
 
 【用户问题】
 {question}
+
+【参考内容】
+{context}
+
+【历史对话】
+{history}
 
 请回答：

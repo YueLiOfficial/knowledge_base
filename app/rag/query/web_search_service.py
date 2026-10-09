@@ -68,6 +68,6 @@ def search_by_web(state: QueryGraphState) -> QueryGraphState:
 
     web_search_str = web_search_answer.content[0].text # type: ignore
 
-    web_search_docs = json.loads(web_search_str)
+    web_search_docs = json.loads(web_search_str).get("pages", [])
 
     return web_search_docs
