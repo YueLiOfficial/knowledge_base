@@ -14,6 +14,16 @@ MINERU_DOWNLOAD_TIMEOUT_SECONDS = 300
 SUPPORTED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
 IMAGE_CONTENT_LEN = 100
 
+# ============ 装饰性图片过滤 ============
+# PDF 解析会把页码角标、编号图标、分隔线等装饰元素一并切成图片，
+# 这类图进入切块后既污染上下文、又占用检索名额，需要在导入阶段丢弃。
+# 实测垃圾图普遍 <80px 且 <3KB，正文插图普遍 >1000px，因此阈值可以从宽设定。
+# 判定为装饰图后：不生成摘要、不上传 MinIO，并从 Markdown 中移除引用。
+DECORATIVE_IMAGE_MIN_EDGE_PX = 80       # 最长边小于该值 → 判为装饰图
+DECORATIVE_IMAGE_MIN_BYTES = 3 * 1024   # 文件小于该大小 → 判为装饰图
+# 视觉模型判定图片"无实质内容"时返回的标记（与 image_summary.prompt 约定一致）
+DECORATIVE_IMAGE_SENTINEL = "NO_CONTENT"
+
 # 文本切块最大长度：单个文本块最多包含 1000 字符（防止过长导致向量失真）
 CHUNK_MAX_SIZE = 1000
 # 文本切块基准长度：单个文本块理想大小为 600 字符（兼顾语义完整性 + 检索精度）
