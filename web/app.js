@@ -282,6 +282,8 @@ function renderAnswerWithImages(containerEl, answerText, candidateImageUrls, mar
 
 const OPTION_ANSWER_PREFIX = '请在以下选项中选择要咨询的产品';
 const NO_ITEM_ANSWER_PREFIX = '无法识别您要咨询的产品';
+/** 匹配「前缀 + 冒号 + 方括号清单」，用于从展示文本中去掉选项清单本身。 */
+const OPTION_LIST_PATTERN = /请在以下选项中选择要咨询的产品\s*[:：]?\s*\[[\s\S]*?\]/;
 
 /**
  * 候选集签名：排序后拼接，与顺序无关。
@@ -363,13 +365,15 @@ function extractOptions(data){
 }
 
 /** 构建候选卡片。 */
-function makeChoiceCard(names, { disabled, selected, stale }){
+function makeChoiceCard(names, { disabled, selected, stale, question }){
   const wrap = document.createElement('div');
   wrap.className = 'choice-card';
   if(disabled) wrap.classList.add('is-disabled');
   if(selected) wrap.classList.add('is-selected');
   wrap.setAttribute('role', 'group');
   wrap.setAttribute('aria-label', '请选择要咨询的产品');
+  // 记录本卡片对应的用户原问题：选中后仍要带着意图去检索
+  if(question) wrap.setAttribute('data-question', String(question));
 
   const hint = document.createElement('div');
   hint.className = 'choice-hint';
@@ -415,7 +419,12 @@ function renderChoiceCard(botMsgEl, names, opts){
   if(old) old.remove();
 
   const stale = !!(opts && opts.stale);
-  const card = makeChoiceCard(names, { disabled: stale, selected: '', stale });
+  const card = makeChoiceCard(names, {
+    disabled: stale,
+    selected: '',
+    stale,
+    question: opts && opts.question,
+  });
   // 卡片挂在气泡之后：既保持与消息的关联，又不被气泡配色影响
   const bubble = body.querySelector('.bubble');
   if(bubble) body.insertBefore(card, bubble.nextSibling);
@@ -449,8 +458,42 @@ function onChoicePick(name, cardEl){
       b.classList.toggle('is-chosen', b.textContent === name);
     });
   }
-  // forceItemNames 让后端跳过主体确认的二次检索，直接锁定该型号
-  onSend(name, { fromChoice: true, forceItemNames: [name] });
+  // 关键：提问文本必须是「用户原问题」本身，型号只放在 forceItemNames 里。
+  // 「型号 + 原问题」的拼接统一由后端完成（见 apply_forced_item_name）；
+  // 前端若也拼一遍，就会得到「型号 型号 原问题」这种重复文本。
+  const pendingQuestion = readPendingQuestion(cardEl);
+  const queryText = pendingQuestion || name;   // 拿不到原问题时退回型号名
+  onSend(queryText, { fromChoice: true, forceItemNames: [name], displayText: name });
+}
+
+/**
+ * 读取候选卡片所属的「用户原问题」。
+ *
+ * 优先取卡片上记录的值（实时交互时由 presentChoiceCard 写入）；
+ * 历史回放场景下卡片由 addBotMsgWithTime 重建，此时向上寻找最近的一条用户消息。
+ *
+ * @param {HTMLElement|null} cardEl 候选卡片元素
+ * @returns {string} 用户原问题；找不到时返回空串
+ */
+function readPendingQuestion(cardEl){
+  if(!cardEl) return '';
+  const recorded = cardEl.getAttribute('data-question');
+  if(recorded) return recorded.trim();
+
+  // 兜底：向上遍历，找该卡片之前最近的一条用户消息
+  let node = cardEl;
+  while(node){
+    let sib = node.previousElementSibling;
+    while(sib){
+      if(sib.classList && sib.classList.contains('msg') && sib.classList.contains('user')){
+        const bubble = sib.querySelector('.bubble');
+        return bubble ? bubble.textContent.trim() : '';
+      }
+      sib = sib.previousElementSibling;
+    }
+    node = node.parentElement;
+  }
+  return '';
 }
 
 /* ==========================================================================
@@ -728,11 +771,12 @@ function scrollToBottom(){
   chatEl.scrollTop = chatEl.scrollHeight;
 }
 
-function addUserMsg(text, ts){
+function addUserMsg(text, ts, displayText){
+  const shown = (typeof displayText === 'string' && displayText) ? displayText : text;
   const html = `
     <div class="msg user">
       <div>
-        <div class="bubble">${escapeHtml(text)}</div>
+        <div class="bubble">${escapeHtml(shown)}</div>
         <div class="meta">${ts ? formatTime(ts) : nowTime()}</div>
       </div>
       <div class="avatar">我</div>
@@ -742,7 +786,7 @@ function addUserMsg(text, ts){
   scrollToBottom();
 }
 
-function addBotMsgWithTime(text, ts, imageUrls, options){
+function addBotMsgWithTime(text, ts, imageUrls, options, question){
   const id = genId('bot-his');
   const html = `
     <div class="msg bot" id="${id}">
@@ -760,7 +804,8 @@ function addBotMsgWithTime(text, ts, imageUrls, options){
     renderAnswerWithImages(el.querySelector('.answer'), text || '', imageUrls || [], true);
     // 历史回放时重建候选卡片（后端已持久化 option_item_names）
     if(Array.isArray(options) && options.length > 0){
-      renderChoiceCard(el, options, { stale: false });
+      // 历史里的这条助手消息没有直接存"用户原问题"，由 readPendingQuestion 向上回溯
+      renderChoiceCard(el, options, { stale: false, question: question || '' });
     }
   }
   scrollToBottom();
@@ -831,7 +876,7 @@ function renderProgress(botMsgEl, doneList, runningList, status){
  * @param {string[]} imageUrls 候选图片
  * @param {object[]} [options] 后端给出的候选商品列表（结构化字段优先，缺失时按文案兜底）
  */
-function finalizeBotAnswer(botMsgEl, answer, error, imageUrls, options){
+function finalizeBotAnswer(botMsgEl, answer, error, imageUrls, options, originalQuery){
   if(!botMsgEl) return;
   const bubble = botMsgEl.querySelector('.bubble');
   const progress = botMsgEl.querySelector('details.progress');
@@ -855,7 +900,7 @@ function finalizeBotAnswer(botMsgEl, answer, error, imageUrls, options){
 
   // 候选卡片：仅在没有错误时渲染
   if(!err){
-    presentChoiceCard(botMsgEl, answer || '', options);
+    presentChoiceCard(botMsgEl, answer || '', options, originalQuery);
   }
 
   scrollToBottom();
@@ -872,7 +917,7 @@ function finalizeBotAnswer(botMsgEl, answer, error, imageUrls, options){
  * @param {string} answerText
  * @param {object[]} [options]
  */
-function presentChoiceCard(botMsgEl, answerText, options){
+function presentChoiceCard(botMsgEl, answerText, options, originalQuery){
   const maybeOptions = Array.isArray(options) ? options : null;
   const names = extractOptions({
     structured: maybeOptions,
@@ -881,6 +926,10 @@ function presentChoiceCard(botMsgEl, answerText, options){
     skipTextFallback: maybeOptions === null && isNoItemAnswer(answerText),
   });
   if(names.length === 0) return;
+
+  // 候选已能用按钮表达，就不必再重复打印一句「请在以下选项中选择…['A','B']」。
+  // 仅在确实解析出候选时才隐藏原文案；解析不出来时保留原文，避免丢信息。
+  hideOptionListText(botMsgEl, answerText);
 
   const signature = optionSetSignature(names);
   if(hasLiveCardForSignature(signature)){
@@ -894,8 +943,42 @@ function presentChoiceCard(botMsgEl, answerText, options){
     return;
   }
 
-  const card = renderChoiceCard(botMsgEl, names, { stale: false });
+  const card = renderChoiceCard(botMsgEl, names, { stale: false, question: originalQuery });
   if(card) card.setAttribute('data-opt-sig', signature);
+}
+
+/**
+ * 把答案文本里的「请在以下选项中选择…: ['A','B']」这类选项清单从界面上隐去。
+ *
+ * 只在文案里除了选项清单之外还有别的内容时保留其余部分；若整段就是选项清单，
+ * 则完全清空文本块（留出选择卡片本身）。解析不出选项时不做任何改动。
+ *
+ * @param {HTMLElement} botMsgEl 机器人消息元素
+ * @param {string} answerText    原始答案文本
+ */
+function hideOptionListText(botMsgEl, answerText){
+  const raw = String(answerText == null ? '' : answerText);
+  const at = raw.indexOf(OPTION_ANSWER_PREFIX);
+  if(at === -1) return;   // 不是选项提示文案，不动
+
+  const answerEl = botMsgEl.querySelector('.answer-text');
+  if(!answerEl) return;
+
+  // 前缀 + 紧随的冒号 + 方括号清单，整体去掉；保留清单之前可能存在的说明文字
+  const rest = raw
+    .slice(0, at)
+    .concat(raw.slice(at).replace(OPTION_LIST_PATTERN, ''))
+    .trim();
+
+  if(rest){
+    // 文案里还有别的说明，仅去掉选项清单部分
+    answerEl.classList.add('md-body');
+    answerEl.innerHTML = renderMarkdown(rest);
+  }else{
+    // 整段就是选项清单：清空文本块，只留卡片
+    answerEl.textContent = '';
+    answerEl.classList.add('is-empty');
+  }
 }
 
 function setSending(flag){
@@ -1050,6 +1133,8 @@ async function onSend(overrideText, opts){
   if(!text || state.sending) return;
   const fromChoice = !!(opts && opts.fromChoice);
   const forceItemNames = (opts && Array.isArray(opts.forceItemNames)) ? opts.forceItemNames : null;
+  // 用户气泡显示文本：直选时显示选中的型号（更直观），而实际发送的 query 仍带完整意图
+  const displayText = (opts && typeof opts.displayText === 'string') ? opts.displayText : '';
   // 测试钩子：允许注入响应数据，使端到端验证无需真实后端（生产环境不传）
   const injected = (opts && opts.injected) || null;
 
@@ -1057,7 +1142,7 @@ async function onSend(overrideText, opts){
   // 新的一轮对话开始：之前的候选卡片全部失效，避免点击过期选项
   markStaleChoiceCards();
 
-  addUserMsg(text);
+  addUserMsg(text, undefined, displayText);
   const botMsgEl = addBotMsgSkeleton();
   setSending(true);
 
@@ -1070,7 +1155,7 @@ async function onSend(overrideText, opts){
       // 非流式：{ session_id, message, answer, done_list, image_urls, option_item_names }
       const payload = injected ? (injected.final || {}) : data;
       renderProgress(botMsgEl, payload.done_list || [], [], 'completed');
-      finalizeBotAnswer(botMsgEl, payload.answer, payload.error, payload.image_urls || [], payload.option_item_names || null);
+      finalizeBotAnswer(botMsgEl, payload.answer, payload.error, payload.image_urls || [], payload.option_item_names || null, text);
       setSending(false);
       return;
     }
@@ -1120,16 +1205,16 @@ async function onSend(overrideText, opts){
             ? d.answer
             : (rawAnswerText || '');
           renderProgress(botMsgEl, (d.done_list || []), [], 'completed');
-          finalizeBotAnswer(botMsgEl, finalText, d.error, d.image_urls || [], d.option_item_names || null);
+          finalizeBotAnswer(botMsgEl, finalText, d.error, d.image_urls || [], d.option_item_names || null, text);
         }catch(_){
-          finalizeBotAnswer(botMsgEl, rawAnswerText, '', []);
+          finalizeBotAnswer(botMsgEl, rawAnswerText, '', [], null, text);
         }
         setSending(false);
       },
       onServerError: (msg) => {
         removeTyping();
         rawAnswerText += `\n\n（错误：${msg}）`;
-        finalizeBotAnswer(botMsgEl, rawAnswerText, '', []);
+        finalizeBotAnswer(botMsgEl, rawAnswerText, '', [], null, text);
         setSending(false);
       },
     };

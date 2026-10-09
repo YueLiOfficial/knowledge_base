@@ -1,12 +1,11 @@
 from datetime import datetime
 import json
-from mimetypes import guess_type
 from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, Request
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from app.api.server.web_assets import register_web_routes
 
 from app.api.schema.query_schema import ClearHistorySchema, NotStreamResponseSchema, SearchHistoryItemSchema, SearchHistorySchema, StreamRequestSchema, StreamResponseSchema
 from app.process.query.agent.state import create_query_default_state
@@ -18,10 +17,8 @@ from app.shared.utils.task_utils import clear_task, get_done_task_list, update_t
 
 app = FastAPI()
 
-# 统一页面静态资源目录（结构 web/index.html，资源 /static/style.css、/static/app.js）
-WEB_DIR = Path(__file__).parents[3] / "web"
-
-app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
+# 统一页面：GET /html 与 /static（资源带版本号且禁缓存）
+register_web_routes(app)
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
@@ -29,16 +26,6 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 def check_health():
     # logger.info(f"{datetime.now()}完成了本次健康状态检查")
     return {"ok": True}
-
-@app.get("/html")
-def html():
-    # 统一页面：结构在 web/index.html，样式与脚本由同目录的 style.css / app.js 提供
-    html_path = Path(__file__).parents[3] / "web" / "index.html"
-    
-    return FileResponse(
-        path = str(html_path),
-        media_type=guess_type(html_path.name)[0]
-    )
 
 @app.get("/stream/{session_id}")
 def get_stream_msg(session_id: str, request: Request):

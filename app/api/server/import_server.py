@@ -1,12 +1,10 @@
 from datetime import datetime
-from mimetypes import guess_type
 from pathlib import Path
 import uuid
 
 from fastapi import BackgroundTasks, FastAPI, UploadFile
-from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from app.api.server.web_assets import register_web_routes
 import uvicorn
 from app.api.schema.import_schema import UploadResponseSchema, StatusResponseSchema
 from app.process.import_.agent.state import create_default_state
@@ -15,10 +13,8 @@ from app.shared.utils.task_utils import get_done_task_list, get_running_task_lis
 
 app = FastAPI()
 
-# 统一页面静态资源目录（结构 web/index.html，资源 /static/style.css、/static/app.js）
-WEB_DIR = Path(__file__).parents[3] / "web"
-
-app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
+# 统一页面：GET /html 与 /static（资源带版本号且禁缓存）
+register_web_routes(app)
 
 # 跨源配置：统一页面可能由 query_server(8001) 提供，此时上传与状态轮询属于跨源请求，
 # 缺少该中间件时浏览器会丢弃响应（服务端返回 200 但前端报 CORS 错误）。
@@ -74,17 +70,6 @@ async def upload(task:BackgroundTasks, files: list[UploadFile]):
     return UploadResponseSchema(
         msg=f"文件{file.filename}上传成功, 请等待解析",
         task_ids=[task_id]
-    )
-
-# 页面文件
-@app.get("/html")
-def html():
-    # 统一页面：结构在 web/index.html，样式与脚本由同目录的 style.css / app.js 提供
-    html_path = Path(__file__).parents[3] / "web" / "index.html"
-
-    return FileResponse(
-        path=html_path,
-        media_type=guess_type(html_path.name)[0]
     )
 
 # 查询状态

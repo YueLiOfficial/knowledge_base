@@ -36,6 +36,48 @@ def dedupe_keep_order(names: list) -> list:
         result.append(name)
     return result
 
+
+def _normalize_for_compare(text: str) -> str:
+    """归一化文本用于「是否只是型号名」的判断：去掉空白并统一大小写。
+
+    Args:
+        text: 待归一化的文本。
+
+    Returns:
+        str: 归一化结果。
+    """
+    return "".join(str(text or "").split()).lower()
+
+
+def _compose_retrieval_query(subject: str, original_query: str) -> str:
+    """拼装用于检索与提问的文本：型号提供主体锚点，原问题提供意图。
+
+    需要防止两种退化情况：
+    1. 只给型号不给意图 —— 检索会退化为「搜型号名」，召回产品介绍而非使用说明；
+    2. 型号被重复拼接（调用方已在 query 里带了型号）—— 得到「型号 型号 问题」。
+
+    Args:
+        subject: 选定型号（多主体以「、」连接）。
+        original_query: 用户原始问题。
+
+    Returns:
+        str: 拼装后的检索文本。
+    """
+    question = (original_query or "").strip()
+    if not question:
+        return subject
+
+    norm_subject = _normalize_for_compare(subject)
+    norm_question = _normalize_for_compare(question)
+
+    # 原问题本身就只是型号名：直接用它，不再拼一遍
+    if norm_question == norm_subject:
+        return subject
+    # 原问题里已经带了型号：保留原问题即可，避免型号出现两次
+    if norm_subject and norm_subject in norm_question:
+        return question
+    return f"{subject} {question}".strip()
+
 @step_log("validate_and_get_data")
 def validate_and_get_data(state: QueryGraphState) -> tuple[str, str]:
     session_id = state.get("session_id")
@@ -265,8 +307,9 @@ def apply_forced_item_name(state: QueryGraphState) -> QueryGraphState | None:
     命中直选时：
     1. state["item_names"] 直接设为用户选定的名称，并清空候选列表与前置 answer，
        使 router 判定为「已确认主体」而继续走多路召回流程；
-    2. rewritten_query 使用用户选定的标准型号（原问题常为模糊表述，如「华为平板怎么用」，
-       直接用选定型号更利于后续检索）；
+    2. rewritten_query 由「选定型号 + 用户原问题」拼成，绝不能用纯型号名：
+       该字段是 embedding / HyDE / 联网检索 / rerank / 答案生成共用的检索与提问文本，
+       只用型号名会让检索退化为「搜型号」，召回产品介绍页而不是使用说明；
     3. 历史记录中的 item_names 同步为选定型号，保证后续轮次的历史指代一致。
 
     Args:
@@ -281,14 +324,21 @@ def apply_forced_item_name(state: QueryGraphState) -> QueryGraphState | None:
     if not forced:
         return None
 
+    original_query = (state.get("original_query") or "").strip()
+
     state["item_names"] = forced
     # 必须清空：残留的候选/answer 会让 router 直接跳到答案输出节点
     state["option_item_names"] = []
     state["answer"] = ""
-    # 模糊问题（如"华为平板怎么用"）不利于检索，改写为选定型号本身
-    state["rewritten_query"] = "、".join(str(name) for name in forced)
 
-    logger.info(f"命中直选，跳过主体确认检索，直接锁定 item_names: {forced}")
+    # 型号提供主体锚点，原问题提供意图（怎么使用/怎么接线/故障排查…），两者缺一不可。
+    # 例如「烫金机怎么使用」选定「Brother HAK 180 烫金机」后，
+    # 检索文本应为「Brother HAK 180 烫金机 烫金机怎么使用」，
+    # 这样答案才会是使用说明，而不是产品亮点介绍。
+    subject = "、".join(str(name) for name in forced)
+    state["rewritten_query"] = _compose_retrieval_query(subject, original_query)
+
+    logger.info(f"命中直选，跳过主体确认检索，锁定 item_names={forced}，检索用 rewritten_query={state['rewritten_query']}")
 
     save_history(state)
 
