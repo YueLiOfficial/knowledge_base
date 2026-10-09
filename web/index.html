@@ -1,0 +1,117 @@
+<!-- 统一知识库页面：左侧知识库文件导入与管理，右侧 AI 对话。 -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>RAG智能问答系统</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- ================= 顶栏 ================= -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div class="title">
+          <strong>RAG智能问答系统</strong>
+          <span>在线 · 可查询知识库与联网信息 · 支持文档导入</span>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button type="button" class="pill" id="queryApiPill" title="点击重新检测查询服务">
+          <span class="dot-ind"></span>查询服务：检测中
+        </button>
+        <button type="button" class="pill" id="importApiPill" title="点击重新检测导入服务">
+          <span class="dot-ind"></span>导入服务：检测中
+        </button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <!-- ================= 左栏：知识库管理 ================= -->
+      <section class="panel kb-panel" aria-label="知识库文件导入与管理">
+        <div class="panel-head">
+          <div class="panel-head-main">
+            <h2>知识库管理</h2>
+            <p class="panel-sub">上传 PDF / Markdown，自动完成解析、切分与向量入库</p>
+          </div>
+          <button type="button" class="btn btn-ghost" id="kbClearBtn" disabled>清理列表</button>
+        </div>
+
+        <div class="kb-body">
+          <div class="drop-zone" id="dropZone" tabindex="0" role="button"
+               aria-label="点击或拖拽文件到此处上传 PDF 或 Markdown">
+            <div class="drop-icon" aria-hidden="true">☁️</div>
+            <p class="drop-title">点击或拖拽文件到此处</p>
+            <p class="drop-hint">支持 PDF / MD，可多选</p>
+            <input type="file" id="fileInput" class="file-input" multiple accept=".pdf,.md" />
+          </div>
+
+          <div class="kb-summary" id="kbSummary">尚未上传文件</div>
+
+          <div class="file-list" id="fileList">
+            <!-- 文件卡片由 app.js 动态生成 -->
+          </div>
+
+          <div class="kb-empty" id="kbEmpty">
+            <div class="kb-empty-icon" aria-hidden="true">📚</div>
+            <p class="kb-empty-title">还没有文件</p>
+            <p class="kb-empty-hint">上传后的解析进度会显示在这里</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 右栏：AI 对话 ================= -->
+      <section class="panel chat-panel" aria-label="AI 对话">
+        <div class="panel-head">
+          <div class="panel-head-main">
+            <h2>AI 对话</h2>
+            <p class="panel-sub" id="sessionInfo">会话：--</p>
+          </div>
+          <div class="chat-actions">
+            <label class="switch" title="关闭后将一次性返回完整答案">
+              <input type="checkbox" id="streamToggle" checked />
+              <span>流式输出</span>
+            </label>
+            <button type="button" class="btn btn-ghost" id="btnClear">清空对话</button>
+          </div>
+        </div>
+
+        <div class="chat" id="chat">
+          <div class="dayline">今天</div>
+          <div class="msg bot">
+            <div class="avatar bot">AI</div>
+            <div>
+              <div class="bubble">你好，我是智能问答系统。你可以先上传文档，也可以直接提问，我会在“阶段进度”里展示处理过程。</div>
+              <div class="meta">提示：可以问“如何使用万用表测量电压？”</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="composer">
+          <textarea id="input" rows="1" placeholder="请输入问题（Enter 发送，Shift+Enter 换行）"></textarea>
+          <button type="button" class="send" id="send">发送</button>
+        </div>
+        <div class="hint">
+          快捷键：<span class="kbd">Enter</span> 发送，<span class="kbd">Shift</span>+<span class="kbd">Enter</span> 换行
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ================= 确认弹窗 ================= -->
+  <div class="modal-mask" id="modalMask" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <h3 id="modalTitle">确认操作</h3>
+      <p id="modalText"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="modalCancel">取消</button>
+        <button type="button" class="btn btn-danger" id="modalOk">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
